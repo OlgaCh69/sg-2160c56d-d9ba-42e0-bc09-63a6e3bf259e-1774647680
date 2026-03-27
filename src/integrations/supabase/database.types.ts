@@ -127,6 +127,8 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -135,6 +137,8 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -143,6 +147,8 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -153,7 +159,9 @@ export type Database = {
           free_generations_limit: number
           free_generations_used: number
           id: string
+          stripe_subscription_id: string | null
           subscription_expires_at: string | null
+          subscription_period_end: string | null
           subscription_status: string
           updated_at: string | null
           user_id: string
@@ -163,7 +171,9 @@ export type Database = {
           free_generations_limit?: number
           free_generations_used?: number
           id?: string
+          stripe_subscription_id?: string | null
           subscription_expires_at?: string | null
+          subscription_period_end?: string | null
           subscription_status?: string
           updated_at?: string | null
           user_id: string
@@ -173,7 +183,9 @@ export type Database = {
           free_generations_limit?: number
           free_generations_used?: number
           id?: string
+          stripe_subscription_id?: string | null
           subscription_expires_at?: string | null
+          subscription_period_end?: string | null
           subscription_status?: string
           updated_at?: string | null
           user_id?: string
