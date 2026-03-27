@@ -172,13 +172,13 @@ export const aiService = {
       await generationService.updateGenerationStatus(generationId, "processing");
 
       // Get generation details
-      const generation = await generationService.getGenerationById(generationId);
+      const generation = await generationService.getGeneration(generationId);
       if (!generation) {
         throw new Error("Generation not found");
       }
 
       const isPremium = generation.generation_type === "premium";
-      const inputPhotos = generation.input_photos as string[];
+      const inputPhotos = Array.isArray(generation.input_photos) ? generation.input_photos as string[] : [];
 
       // Step 1: Generate enhanced photos (takes longest)
       const enhancedPhotos = await aiService.generateEnhancedPhotos(
@@ -188,9 +188,7 @@ export const aiService = {
       );
 
       // Update generation with output photos
-      await generationService.updateGeneration(generationId, {
-        outputPhotos: enhancedPhotos,
-      });
+      await generationService.updateGenerationStatus(generationId, "processing", enhancedPhotos);
 
       // Step 2: Generate bios
       const bios = await aiService.generateBios(generationId);
@@ -199,19 +197,24 @@ export const aiService = {
       const messages = await aiService.generateOpeningMessages(generationId);
 
       // Step 4: Save generated content
-      await generationService.saveGeneratedContent(generationId, {
-        bioFunny: bios.funny,
-        bioConfident: bios.confident,
-        bioSimple: bios.simple,
-        openingMessages: messages,
-      });
+      await generationService.saveGeneratedContent({ generationId, contentType: "bio_funny", content: bios.funny });
+      await generationService.saveGeneratedContent({ generationId, contentType: "bio_confident", content: bios.confident });
+      await generationService.saveGeneratedContent({ generationId, contentType: "bio_simple", content: bios.simple });
+      
+      for (const msg of messages) {
+        await generationService.saveGeneratedContent({ generationId, contentType: "opening_message", content: msg });
+      }
 
       // Step 5: Calculate and save profile score
       const scores = aiService.calculateProfileScore(inputPhotos, enhancedPhotos);
-      await generationService.saveProfileScore(generationId, scores);
+      await generationService.saveProfileScore({
+        generationId,
+        beforeScore: scores.before,
+        afterScore: scores.after
+      });
 
       // Step 6: Mark generation as completed
-      await generationService.updateGenerationStatus(generationId, "completed");
+      await generationService.updateGenerationStatus(generationId, "completed", enhancedPhotos);
 
     } catch (error) {
       console.error("Generation processing error:", error);
