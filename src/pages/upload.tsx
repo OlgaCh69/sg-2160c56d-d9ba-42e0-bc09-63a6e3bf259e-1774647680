@@ -38,8 +38,11 @@ export default function UploadPage() {
 
       // Get or create profile and check remaining generations
       if (session?.user.id || userId) {
-        const profile = await profileService.getOrCreateProfile(session?.user.id || userId!);
-        const remaining = await generationService.getRemainingGenerations(session?.user.id || userId!);
+        await profileService.getCurrentProfile();
+        const usage = await generationService.checkUsageLimits();
+        const remaining = usage.subscription_status === 'premium' 
+          ? 999 
+          : usage.free_generations_limit - usage.free_generations_used;
         setRemainingGenerations(remaining);
       }
     } catch (err) {
@@ -143,22 +146,26 @@ export default function UploadPage() {
     setError(null);
 
     try {
+      const batchId = Date.now().toString();
+
+      // Upload files to Supabase Storage
+      const photoUrls = await uploadToStorage(uploadedFiles, batchId);
+
       // Create generation record
-      const generation = await generationService.createGeneration(userId, uploadedFiles.length);
+      const generation = await generationService.createGeneration({
+        inputPhotos: photoUrls,
+        generationType: remainingGenerations === 999 ? "premium" : "free",
+        status: "processing"
+      });
       
       if (!generation?.id) {
         throw new Error("Failed to create generation record");
       }
 
-      // Upload files to Supabase Storage
-      const photoUrls = await uploadToStorage(uploadedFiles, generation.id);
-
-      // Update generation with photo URLs
-      await generationService.updateGenerationStatus(
-        generation.id,
-        'processing',
-        photoUrls
-      );
+      // Increment generation count if it's a free generation
+      if (remainingGenerations !== 999) {
+        await generationService.incrementGenerationCount();
+      }
 
       // Redirect to loading page with generation ID
       router.push(`/loading?generationId=${generation.id}`);
