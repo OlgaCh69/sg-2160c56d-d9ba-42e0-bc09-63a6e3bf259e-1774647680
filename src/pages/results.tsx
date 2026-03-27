@@ -7,6 +7,7 @@ import { Download, Copy, Share2, ArrowLeft, Check, Sparkles, TrendingUp, Message
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { generationService } from "@/services/generationService";
+import { paymentService } from "@/services/paymentService";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Generation = Tables<"generations">;
@@ -27,6 +28,8 @@ export default function ResultsPage() {
   const [generation, setGeneration] = useState<GenerationWithRelations | null>(null);
   const [copiedBio, setCopiedBio] = useState<number | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<number | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Load generation data
   useEffect(() => {
@@ -54,6 +57,7 @@ export default function ResultsPage() {
         }
 
         setGeneration(data);
+        setUserId(data.user_id);
       } catch (err) {
         console.error("Failed to load generation:", err);
         setError("Failed to load results. Please try again.");
@@ -109,6 +113,22 @@ export default function ResultsPage() {
     link.href = url;
     link.download = `rizzai-photo-${index + 1}.jpg`;
     link.click();
+  };
+
+  const handleUpgrade = async () => {
+    if (!userId) {
+      setError("Unable to process upgrade. Please try again.");
+      return;
+    }
+
+    setIsUpgrading(true);
+    try {
+      await paymentService.createCheckoutSession(userId);
+    } catch (err) {
+      console.error("Upgrade error:", err);
+      setError("Failed to start upgrade process. Please try again.");
+      setIsUpgrading(false);
+    }
   };
 
   if (loading) {
@@ -265,8 +285,19 @@ export default function ResultsPage() {
                       <h4 className="font-heading font-semibold mb-1">Remove Watermark</h4>
                       <p className="text-sm text-muted-foreground">Upgrade to get 20+ HD photos without watermarks</p>
                     </div>
-                    <Button className="bg-gradient-cta hover:opacity-90">
-                      Upgrade Now
+                    <Button 
+                      className="bg-gradient-cta hover:opacity-90"
+                      onClick={handleUpgrade}
+                      disabled={isUpgrading}
+                    >
+                      {isUpgrading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Upgrade Now"
+                      )}
                     </Button>
                   </div>
                 </Card>
@@ -375,8 +406,20 @@ export default function ResultsPage() {
               <p className="text-white/90 max-w-2xl mx-auto">
                 Get unlimited generations, HD photos without watermarks, and priority AI processing for just €17/month
               </p>
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90 text-lg px-8 py-6 h-auto">
-                Upgrade to Premium
+              <Button 
+                size="lg" 
+                className="bg-white text-primary hover:bg-white/90 text-lg px-8 py-6 h-auto"
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+              >
+                {isUpgrading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Redirecting to checkout...
+                  </>
+                ) : (
+                  "Upgrade to Premium"
+                )}
               </Button>
             </div>
           </Card>

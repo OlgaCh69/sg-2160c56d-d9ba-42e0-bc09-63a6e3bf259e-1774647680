@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { supabase } from "@/integrations/supabase/client";
 import { generationService } from "@/services/generationService";
 import { profileService } from "@/services/profileService";
+import { paymentService } from "@/services/paymentService";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function UploadPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [remainingGenerations, setRemainingGenerations] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -40,7 +43,9 @@ export default function UploadPage() {
       if (session?.user.id || userId) {
         await profileService.getCurrentProfile();
         const usage = await generationService.checkUsageLimits();
-        const remaining = usage.subscription_status === 'premium' 
+        const isPremiumUser = usage.subscription_status === 'premium';
+        setIsPremium(isPremiumUser);
+        const remaining = isPremiumUser 
           ? 999 
           : usage.free_generations_limit - usage.free_generations_used;
         setRemainingGenerations(remaining);
@@ -176,6 +181,22 @@ export default function UploadPage() {
     }
   };
 
+  const handleUpgrade = async () => {
+    if (!userId) {
+      setError("Please wait while we initialize your session...");
+      return;
+    }
+
+    setIsUpgrading(true);
+    try {
+      await paymentService.createCheckoutSession(userId);
+    } catch (err) {
+      console.error("Upgrade error:", err);
+      setError("Failed to start upgrade process. Please try again.");
+      setIsUpgrading(false);
+    }
+  };
+
   const canGenerate = uploadedFiles.length >= 5 && uploadedFiles.length <= 10 && !isGenerating;
 
   if (isLoading) {
@@ -213,9 +234,17 @@ export default function UploadPage() {
               Add 5-10 of your best selfies for AI enhancement
             </p>
             {remainingGenerations !== null && (
-              <p className="text-sm text-primary mt-2">
-                {remainingGenerations} free generation{remainingGenerations !== 1 ? 's' : ''} remaining
-              </p>
+              <div className="mt-4">
+                {isPremium ? (
+                  <p className="text-sm text-primary font-semibold">
+                    ✨ Premium Member - Unlimited Generations
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {remainingGenerations} free generation{remainingGenerations !== 1 ? 's' : ''} remaining
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -226,6 +255,22 @@ export default function UploadPage() {
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <p className="text-sm font-medium">{error}</p>
               </div>
+              {remainingGenerations === 0 && !isPremium && (
+                <Button 
+                  className="mt-4 w-full bg-gradient-cta hover:opacity-90"
+                  onClick={handleUpgrade}
+                  disabled={isUpgrading}
+                >
+                  {isUpgrading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Redirecting to checkout...
+                    </>
+                  ) : (
+                    "Upgrade to Premium - €17/month"
+                  )}
+                </Button>
+              )}
             </Card>
           )}
 
