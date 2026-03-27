@@ -11,8 +11,9 @@ export const generationService = {
    * Create a new generation record
    */
   async createGeneration(data: {
-    photoCount: number;
-    status?: "pending" | "processing" | "completed" | "failed";
+    inputPhotos: string[];
+    generationType: "free" | "premium";
+    status?: "processing" | "completed" | "failed";
   }) {
     const { data: session } = await supabase.auth.getSession();
     if (!session?.session?.user) {
@@ -23,8 +24,10 @@ export const generationService = {
       .from("generations")
       .insert({
         user_id: session.session.user.id,
-        photo_count: data.photoCount,
-        status: data.status || "pending",
+        input_photos: data.inputPhotos,
+        output_photos: [],
+        generation_type: data.generationType,
+        status: data.status || "processing",
       })
       .select()
       .single();
@@ -39,11 +42,20 @@ export const generationService = {
    */
   async updateGenerationStatus(
     generationId: string,
-    status: "pending" | "processing" | "completed" | "failed"
+    status: "processing" | "completed" | "failed",
+    outputPhotos?: string[]
   ) {
+    const updateData: any = { status };
+    if (outputPhotos) {
+      updateData.output_photos = outputPhotos;
+    }
+    if (status === "completed" || status === "failed") {
+      updateData.completed_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("generations")
-      .update({ status })
+      .update(updateData)
       .eq("id", generationId)
       .select()
       .single();
@@ -54,14 +66,12 @@ export const generationService = {
   },
 
   /**
-   * Save generated content (photos, bios, messages)
+   * Save generated content (bios, messages)
    */
   async saveGeneratedContent(data: {
     generationId: string;
-    contentType: "photo" | "bio" | "message";
+    contentType: "bio_funny" | "bio_confident" | "bio_simple" | "opening_message";
     content: string;
-    photoUrl?: string;
-    photoStyle?: string;
   }) {
     const { data: content, error } = await supabase
       .from("generated_content")
@@ -69,8 +79,6 @@ export const generationService = {
         generation_id: data.generationId,
         content_type: data.contentType,
         content: data.content,
-        photo_url: data.photoUrl,
-        photo_style: data.photoStyle,
       })
       .select()
       .single();
@@ -87,7 +95,6 @@ export const generationService = {
     generationId: string;
     beforeScore: number;
     afterScore: number;
-    improvements: string[];
   }) {
     const { data: score, error } = await supabase
       .from("profile_scores")
@@ -95,7 +102,6 @@ export const generationService = {
         generation_id: data.generationId,
         before_score: data.beforeScore,
         after_score: data.afterScore,
-        improvements: data.improvements,
       })
       .select()
       .single();
@@ -187,10 +193,9 @@ export const generationService = {
       .from("usage_limits")
       .insert({
         user_id: session.session.user.id,
-        is_premium: false,
-        generations_used: 0,
-        max_generations: 3,
-        reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        subscription_status: "free",
+        free_generations_used: 0,
+        free_generations_limit: 3,
       })
       .select()
       .single();
@@ -213,7 +218,7 @@ export const generationService = {
     const usage = await this.checkUsageLimits();
     
     // Check if user has remaining generations
-    if (!usage.is_premium && usage.generations_used >= usage.max_generations) {
+    if (usage.subscription_status !== "premium" && usage.free_generations_used >= usage.free_generations_limit) {
       throw new Error("Generation limit reached. Please upgrade to Premium.");
     }
 
@@ -221,8 +226,8 @@ export const generationService = {
     const { data, error } = await supabase
       .from("usage_limits")
       .update({ 
-        generations_used: usage.generations_used + 1,
-        last_generation_at: new Date().toISOString(),
+        free_generations_used: usage.free_generations_used + 1,
+        updated_at: new Date().toISOString(),
       })
       .eq("user_id", session.session.user.id)
       .select()
@@ -245,8 +250,8 @@ export const generationService = {
     const { data, error } = await supabase
       .from("usage_limits")
       .update({ 
-        is_premium: true,
-        max_generations: 999999, // Unlimited
+        subscription_status: "premium",
+        updated_at: new Date().toISOString(),
       })
       .eq("user_id", session.session.user.id)
       .select()
