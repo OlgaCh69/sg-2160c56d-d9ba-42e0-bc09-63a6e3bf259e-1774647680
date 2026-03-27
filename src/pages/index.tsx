@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, Sparkles, MessageCircle, TrendingUp, Check, Star, Zap, Clock } from "lucide-react";
 import Link from "next/link";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 
 export default function Home() {
   return (
@@ -60,6 +61,24 @@ export default function Home() {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               See how AI transforms average photos into scroll-stopping profiles.
             </p>
+          </div>
+
+          {/* Before/After Slider Showcase */}
+          <div className="max-w-4xl mx-auto mb-16">
+            <div className="grid md:grid-cols-2 gap-8">
+              <BeforeAfterSlider
+                beforeImage="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80"
+                afterImage="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&q=80"
+                beforeLabel="Before"
+                afterLabel="After"
+              />
+              <BeforeAfterSlider
+                beforeImage="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+                afterImage="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=800&q=80"
+                beforeLabel="Before"
+                afterLabel="After"
+              />
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
